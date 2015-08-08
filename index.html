@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>♜♞♝♛♚♝♞♜</title>
+
+  <!-- Bootstrap for general layout and styling -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+
+  <!-- Our WebRTC application styling -->
+  <link rel="stylesheet" type="text/css" href="css/datachannel-demo.css">
+  <link rel="stylesheet" type="text/css" href="css/chessboard.css">
+</head>
+<body>
+
+  
+    
+  <div class="container">
+    <div class="row">
+      <header class="col-md-12">
+        <h1>C♖E♞♞</h1>
+      </header>
+    </div>
+
+    <div class="row">
+      <section class="col-md-12">
+        
+        
+        <hr>
+
+        <h2>Getting started</h2>
+
+        <ol>
+          <li>Type a game name and click <strong>create</strong></li>
+          <li>Open the chat in another tab</li>
+          <li>Type the same game name and click <strong>join</strong></li>
+          <li>Wait a moment and start playing!</li>
+        </ol>
+
+        <!-- WebRTC demo -->
+        <div class="demo">
+          <div class="demo-connect">
+            <input type="text" class="demo-chat-channel-input form-control" placeholder="game name"></input>
+            <button class="demo-chat-create btn btn-primary">Create</button>
+            <button class="demo-chat-join btn btn-warning">Join</button>
+          </div>
+          <div class="demo-chat inactive">
+
+            <div id="board" style="width: 400px"></div>
+            <p>Status: <span id="status"></span></p>
+            <p>FEN: <span id="fen"></span></p>
+            <p>PGN: <span id="pgn"></span></p>
+
+            <div class="demo-chat-input">
+              <input name="message" class="demo-chat-message-input form-control" placeholder="Message"></input>
+              <button class="demo-chat-send btn btn-primary">Send</button>
+            </div>
+            <ul class="demo-chat-messages list-group">
+              <li class="list-group-item" data-remove="true">No chat messages available</li>
+            </ul>
+          </div>
+          
+        </div>
+        <!-- /End WebRTC demo -->
+      </section>
+    </div>
+  </div>
+  
+  <!-- Zepto for AJAX -->
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/zepto/1.1.6/zepto.min.js"></script> -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+
+  <!-- Pusher for WebRTC signalling -->
+  <script src="https://js.pusher.com/2.2/pusher.min.js"></script>
+  <script src="https://cdn.rawgit.com/leggetter/pusher-js-client-auth/master/dist/pusher-js-client-auth.js"></script>
+  
+  <!-- DataChannel.js for WebRTC functionality -->
+  <script src="js/DataChannel.js"></script>
+
+  <!-- Our WebRTC application -->
+  <script src="js/datachannel-demo.js"></script>
+
+  <script type="text/javascript" src="js/chessboard.js"></script>
+  <script type="text/javascript" src="js/chess.js"></script>
+
+  <!-- Fill channel name -->
+  <script>
+    function getParameterByName(name) {
+      name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+      var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+          results = regex.exec(location.search);
+      return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+    }
+
+    var channel = getParameterByName("chess");
+
+    if (channel) {
+      document.querySelector(".demo-chat-channel-input").value = channel;
+    }
+
+    function setBoard(){
+      var board,
+      game = new Chess(),
+      statusEl = $('#status'),
+      fenEl = $('#fen'),
+      pgnEl = $('#pgn');
+
+    // do not pick up pieces if the game is over
+    // only pick up pieces for the side to move
+    var onDragStart = function(source, piece, position, orientation) {
+      if (game.game_over() === true ||
+          (game.turn() === 'w' && piece.search(/^b/) !== -1) ||
+          (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
+        return false;
+      }
+    };
+
+    var onDrop = function(source, target) {
+      // see if the move is legal
+      var move = game.move({
+        from: source,
+        to: target,
+        promotion: 'q' // NOTE: always promote to a queen for example simplicity
+      });
+
+      // illegal move
+      if (move === null) return 'snapback';
+
+      updateStatus();
+    };
+
+    // update the board position after the piece snap 
+    // for castling, en passant, pawn promotion
+    var onSnapEnd = function() {
+      board.position(game.fen());
+    };
+
+    var updateStatus = function() {
+      var status = '';
+
+      var moveColor = 'White';
+      if (game.turn() === 'b') {
+        moveColor = 'Black';
+      }
+
+      // checkmate?
+      if (game.in_checkmate() === true) {
+        status = 'Game over, ' + moveColor + ' is in checkmate.';
+      }
+
+      // draw?
+      else if (game.in_draw() === true) {
+        status = 'Game over, drawn position';
+      }
+
+      // game still on
+      else {
+        status = moveColor + ' to move';
+
+        // check?
+        if (game.in_check() === true) {
+          status += ', ' + moveColor + ' is in check';
+        }
+      }
+
+      statusEl.html(status);
+      fenEl.html(game.fen());
+      pgnEl.html(game.pgn());
+    };
+
+    var cfg = {
+      draggable: true,
+      position: 'start',
+      onDragStart: onDragStart,
+      onDrop: onDrop,
+      onSnapEnd: onSnapEnd
+    };
+    board = ChessBoard('board', cfg);
+
+    updateStatus();
+
+    }
+  </script>
+</body>
+</html>
